@@ -1,12 +1,22 @@
-const bcrypt = require('bcryptjs');
 const express = require('express');
-const cors = require('cors'); // Import cors
+const mongoose = require('mongoose'); // MISSING IN YOUR VERSION
+const cors = require('cors');
+const bcrypt = require('bcryptjs');
+require('dotenv').config(); // MISSING IN YOUR VERSION
+
 const app = express();
 
-app.use(cors()); // Enable CORS for all routes
+// 1. Middlewares (Must be at the top)
+app.use(cors()); 
 app.use(express.json());
 
-// 1. Updated User Schema to match your signup.html
+// 2. Connect to MongoDB
+// This uses the MONGODB_URI you set in the Render Dashboard
+mongoose.connect(process.env.MONGODB_URI)
+    .then(() => console.log("Connected to MongoDB Atlas"))
+    .catch(err => console.error("Could not connect to MongoDB:", err));
+
+// 3. User Schema
 const userSchema = new mongoose.Schema({
     gender: String,
     firstName: String,
@@ -18,28 +28,20 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// 2. Sign-Up Route
+// 4. API Routes
 app.post('/api/signup', async (req, res) => {
     try {
         const { gender, firstName, lastName, mobileNumber, emailId, password } = req.body;
 
-        // Check if user already exists
         const existingUser = await User.findOne({ emailId });
         if (existingUser) {
             return res.status(400).json({ message: "This email is already registered." });
         }
 
-        // Secure the password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Save to MongoDB
         const newUser = new User({
-            gender,
-            firstName,
-            lastName,
-            mobileNumber,
-            emailId,
-            password: hashedPassword
+            gender, firstName, lastName, mobileNumber, emailId, password: hashedPassword
         });
 
         await newUser.save();
@@ -48,3 +50,12 @@ app.post('/api/signup', async (req, res) => {
         res.status(500).json({ message: "Server error: " + err.message });
     }
 });
+
+// Root route to check if server is actually alive
+app.get('/', (req, res) => {
+    res.send("Vivaah Plus API is running and connected to DB!");
+});
+
+// 5. Start Server
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
