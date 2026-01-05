@@ -51,6 +51,36 @@ app.post('/api/signup', async (req, res) => {
     }
 });
 
+// 3. Login Route
+app.post('/api/login', async (req, res) => {
+    try {
+        const { emailId, password } = req.body;
+
+        // 1. Find user by email
+        const user = await User.findOne({ emailId });
+        if (!user) {
+            return res.status(400).json({ message: "User not found. Please sign up." });
+        }
+
+        // 2. Compare the password with the secure hashed one in DB
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: "Invalid email or password." });
+        }
+
+        // 3. Success! Send back non-sensitive user info
+        res.status(200).json({ 
+            message: "Login successful!", 
+            user: { 
+                firstName: user.firstName, 
+                email: user.emailId 
+            } 
+        });
+    } catch (err) {
+        res.status(500).json({ message: "Server error: " + err.message });
+    }
+});
+
 // Root route to check if server is actually alive
 app.get('/', (req, res) => {
     res.send("Vivaah Plus API is running and connected to DB!");
