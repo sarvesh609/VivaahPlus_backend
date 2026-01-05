@@ -1,47 +1,31 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-require('dotenv').config();
+const bcrypt = require('bcryptjs'); // Add this at the top
 
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-// 1. Connect to MongoDB
-// We will set MONGODB_URI in Render's dashboard later
-mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log("Connected to MongoDB Atlas"))
-    .catch(err => console.error("Could not connect to MongoDB:", err));
-
-// 2. Define a Schema (matching your MongoDB data)
-const outfitSchema = new mongoose.Schema({
-    id: Number,
-    gender: String,
-    type: String,
-    name: String,
-    cost: Number,
-    color: String,
-    sizes: [String],
-    img: String
+// 1. Define the User Schema
+const userSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true }
 });
+const User = mongoose.model('User', userSchema);
 
-const Outfit = mongoose.model('Outfit', outfitSchema);
-
-// 3. API Routes
-// Get all outfits
-app.get('/api/outfits', async (req, res) => {
+// 2. Sign-Up Route
+app.post('/api/signup', async (req, res) => {
     try {
-        const outfits = await Outfit.find();
-        res.json(outfits);
+        const { name, email, password } = req.body;
+
+        // Check if user already exists
+        const existingUser = await User.findOne({ email });
+        if (existingUser) return res.status(400).json({ message: "Email already registered" });
+
+        // Hash the password (Security)
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Save to MongoDB
+        const newUser = new User({ name, email, password: hashedPassword });
+        await newUser.save();
+
+        res.status(201).json({ message: "User registered successfully!" });
     } catch (err) {
-        res.status(500).json({ message: err.message });
+        res.status(500).json({ message: "Error: " + err.message });
     }
 });
-
-// Root route to check if server is running
-app.get('/', (req, res) => {
-    res.send("Vivaah Plus API is running...");
-});
-
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
