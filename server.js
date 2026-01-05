@@ -54,27 +54,30 @@ app.post('/api/signup', async (req, res) => {
 // 3. Login Route
 app.post('/api/login', async (req, res) => {
     try {
-        const { emailId, password } = req.body;
+        // We call it 'identifier' because it could be an email or a phone number
+        const { emailId, password } = req.body; 
 
-        // 1. Find user by email
-        const user = await User.findOne({ emailId });
+        // 1. Search for a user matching either the email OR the mobile number
+        const user = await User.findOne({
+            $or: [
+                { emailId: emailId },
+                { mobileNumber: emailId } 
+            ]
+        });
+
         if (!user) {
             return res.status(400).json({ message: "User not found. Please sign up." });
         }
 
-        // 2. Compare the password with the secure hashed one in DB
+        // 2. Check password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            return res.status(400).json({ message: "Invalid email or password." });
+            return res.status(400).json({ message: "Invalid credentials." });
         }
 
-        // 3. Success! Send back non-sensitive user info
         res.status(200).json({ 
             message: "Login successful!", 
-            user: { 
-                firstName: user.firstName, 
-                email: user.emailId 
-            } 
+            user: { firstName: user.firstName, email: user.emailId } 
         });
     } catch (err) {
         res.status(500).json({ message: "Server error: " + err.message });
