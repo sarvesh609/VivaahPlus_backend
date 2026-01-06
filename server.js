@@ -28,6 +28,26 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
+const outfitCatalogSchema = new mongoose.Schema({
+    id: Number,
+    category: String, // 'bride' or 'groom'
+    type: String,     
+    name: String,
+    cost: Number,
+    color: String,
+    sizes: [String],
+    img: String
+});
+const OutfitCatalog = mongoose.model('OutfitCatalog', outfitCatalogSchema);
+
+// --- USER OUTFIT SELECTION SCHEMA ---
+const userOutfitSelectionSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    outfitId: Number,
+    selectedAt: { type: Date, default: Date.now }
+});
+const UserOutfitSelection = mongoose.model('UserOutfitSelection', userOutfitSelectionSchema);
+
 // 4. API Routes
 app.post('/api/signup', async (req, res) => {
     try {
@@ -75,12 +95,70 @@ app.post('/api/login', async (req, res) => {
             return res.status(400).json({ message: "Invalid credentials." });
         }
 
+        // Change your res.status(200) line in the /api/login route to this:
         res.status(200).json({ 
             message: "Login successful!", 
-            user: { firstName: user.firstName, email: user.emailId } 
-        });
+            user: { 
+                id: user._id, // Add this line so the frontend gets the ID
+                firstName: user.firstName, 
+                email: user.emailId 
+            } 
+});
     } catch (err) {
         res.status(500).json({ message: "Server error: " + err.message });
+    }
+});
+
+app.get('/api/outfits/filters', async (req, res) => {
+    try {
+        const category = req.query.category || 'bride';
+        const types = await OutfitCatalog.distinct('type', { category });
+        const colors = await OutfitCatalog.distinct('color', { category });
+        res.status(200).json({ types, colors });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// 2. Fetch outfits based on active filters
+app.get('/api/outfits/search', async (req, res) => {
+    try {
+        const { category, type, color, size, maxCost } = req.query;
+        let query = { category: category || 'bride', cost: { $lte: maxCost || 200000 } };
+        
+        if (type && type !== 'all') query.type = type;
+        if (color && color !== 'all') query.color = color;
+        if (size && size !== 'all') query.sizes = size;
+
+        const outfits = await OutfitCatalog.find(query);
+        res.status(200).json(outfits);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// --- SAVE OR REMOVE USER SELECTION ---
+app.post('/api/outfits/select', async (req, res) => {
+    try {
+        const { userId, outfitId, action } = req.body;
+
+        if (action === 'add') {
+            // Check if already selected to prevent duplicates
+            const existing = await UserOutfitSelection.findOne({ userId, outfitId });
+            if (!existing) {
+                const selection = new UserOutfitSelection({ userId, outfitId });
+                await selection.save();
+            }
+        } else {
+            // Remove the selection
+            await UserOutfitSelection.deleteOne({ userId, outfitId });
+        }
+
+        // Get the updated total count for this user to send back to the UI
+        const currentCount = await UserOutfitSelection.countDocuments({ userId });
+        res.status(200).json({ message: "Selection updated", currentCount });
+    } catch (err) {
+        res.status(500).json({ message: "Selection error: " + err.message });
     }
 });
 
