@@ -42,10 +42,14 @@ const OutfitCatalog = mongoose.model('OutfitCatalog', outfitCatalogSchema);
 
 // --- USER OUTFIT SELECTION SCHEMA ---
 const userOutfitSelectionSchema = new mongoose.Schema({
-    userId: String,
-    outfitId: String,
-    selectedAt: { type: Date, default: Date.now }
+    userId: { type: String, required: true },
+    outfitId: { type: String, required: true },
+    userName: String,      // firstname + lastname
+    outfitName: String,
+    outfitCost: Number,
+    selectedTmstmp: { type: Date, default: Date.now }
 });
+
 const UserOutfitSelection = mongoose.model('UserOutfitSelection', userOutfitSelectionSchema);
 
 // 4. API Routes
@@ -140,25 +144,29 @@ app.get('/api/outfits/search', async (req, res) => {
 // --- SAVE OR REMOVE USER SELECTION ---
 app.post('/api/outfits/select', async (req, res) => {
     try {
-        const { userId, outfitId, action } = req.body;
+        const { userId, outfitId, userName, outfitName, outfitCost, action } = req.body;
 
         if (action === 'add') {
-            // Check if already selected to prevent duplicates
             const existing = await UserOutfitSelection.findOne({ userId, outfitId });
             if (!existing) {
-                const selection = new UserOutfitSelection({ userId, outfitId });    
+                const selection = new UserOutfitSelection({ 
+                    userId, 
+                    outfitId, 
+                    userName, 
+                    outfitName, 
+                    outfitCost,
+                    selectedTmstmp: new Date() 
+                });
                 await selection.save();
             }
         } else {
-            // Remove the selection
             await UserOutfitSelection.deleteOne({ userId, outfitId });
         }
 
-        // Get the updated total count for this user to send back to the UI
         const currentCount = await UserOutfitSelection.countDocuments({ userId });
-        res.status(200).json({ message: "Selection updated", currentCount });
+        res.status(200).json({ currentCount });
     } catch (err) {
-        res.status(500).json({ message: "Selection error: " + err.message });
+        res.status(500).json({ message: err.message });
     }
 });
 
