@@ -42,8 +42,8 @@ const OutfitCatalog = mongoose.model('OutfitCatalog', outfitCatalogSchema);
 
 // --- USER OUTFIT SELECTION SCHEMA ---
 const userOutfitSelectionSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    outfitId: Number,
+    userId: String,
+    outfitId: String,
     selectedAt: { type: Date, default: Date.now }
 });
 const UserOutfitSelection = mongoose.model('UserOutfitSelection', userOutfitSelectionSchema);
@@ -146,7 +146,7 @@ app.post('/api/outfits/select', async (req, res) => {
             // Check if already selected to prevent duplicates
             const existing = await UserOutfitSelection.findOne({ userId, outfitId });
             if (!existing) {
-                const selection = new UserOutfitSelection({ userId, outfitId });
+                const selection = new UserOutfitSelection({ userId, outfitId });    
                 await selection.save();
             }
         } else {
@@ -160,6 +160,18 @@ app.post('/api/outfits/select', async (req, res) => {
     } catch (err) {
         res.status(500).json({ message: "Selection error: " + err.message });
     }
+});
+
+// Get all outfit IDs selected by a specific user
+app.get('/api/outfits/user-selections', async (req, res) => {
+    const selections = await UserOutfitSelection.find({ userId: req.query.userId });
+    res.status(200).json(selections);
+});
+
+// Clear all selections for a user
+app.post('/api/outfits/clear-selections', async (req, res) => {
+    await UserOutfitSelection.deleteMany({ userId: req.body.userId });
+    res.status(200).json({ message: "Cleared" });
 });
 
 // Root route to check if server is actually alive
