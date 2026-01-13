@@ -105,6 +105,7 @@ app.post('/api/login', async (req, res) => {
             user: { 
                 id: user._id, // Add this line so the frontend gets the ID
                 firstName: user.firstName, 
+                lastName: user.lastName,
                 email: user.emailId 
             } 
 });
