@@ -183,6 +183,32 @@ app.post('/api/outfits/clear-selections', async (req, res) => {
     res.status(200).json({ message: "Cleared" });
 });
 
+app.get('/api/user-progress/:userId', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        
+        // 1. Check specific services (we start with Outfits)
+        const outfitCount = await UserOutfitSelection.countDocuments({ userId });
+        const hasOutfits = outfitCount > 0;
+
+        // 2. Calculate Percentage (Example: 4 services total, each 25%)
+        let completedServices = 0;
+        if (hasOutfits) completedServices += 1;
+        
+        const totalServices = 4;
+        const percentage = (completedServices / totalServices) * 100;
+
+        res.status(200).json({
+            percentage: percentage, // 25, 50, 75, or 100
+            services: {
+                outfits: hasOutfits ? 'completed' : 'pending'
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // Root route to check if server is actually alive
 app.get('/', (req, res) => {
     res.send("Vivaah Plus API is running and connected to DB!");
