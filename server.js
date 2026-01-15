@@ -114,6 +114,41 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+app.get('/api/wedspage/user-progress/:userId', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        
+        // Check database for Core Services
+        const outfitCount = await UserOutfitSelection.countDocuments({ userId });
+        const venueCount = 0; // Placeholders for future modules
+        const eventCount = 0;
+        const hotelCount = 0;
+
+        let completedCount = 0;
+        if (outfitCount > 0) completedCount++;
+        if (venueCount > 0) completedCount++;
+        if (eventCount > 0) completedCount++;
+        if (hotelCount > 0) completedCount++;
+
+        const totalServices = 4;
+        const percentage = (completedCount / totalServices) * 100;
+
+        res.status(200).json({
+            percentage,
+            completedCount,
+            totalServices,
+            services: {
+                outfits: outfitCount > 0 ? 'completed' : 'pending',
+                venue: venueCount > 0 ? 'completed' : 'pending',
+                event: eventCount > 0 ? 'completed' : 'pending',
+                hotel: hotelCount > 0 ? 'completed' : 'pending'
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 app.get('/api/outfits/filters', async (req, res) => {
     try {
         const category = req.query.category || 'bride';
@@ -181,32 +216,6 @@ app.get('/api/outfits/user-selections', async (req, res) => {
 app.post('/api/outfits/clear-selections', async (req, res) => {
     await UserOutfitSelection.deleteMany({ userId: req.body.userId });
     res.status(200).json({ message: "Cleared" });
-});
-
-app.get('/api/user-progress/:userId', async (req, res) => {
-    try {
-        const userId = req.params.userId;
-        
-        // 1. Check specific services (we start with Outfits)
-        const outfitCount = await UserOutfitSelection.countDocuments({ userId });
-        const hasOutfits = outfitCount > 0;
-
-        // 2. Calculate Percentage (Example: 4 services total, each 25%)
-        let completedServices = 0;
-        if (hasOutfits) completedServices += 1;
-        
-        const totalServices = 4;
-        const percentage = (completedServices / totalServices) * 100;
-
-        res.status(200).json({
-            percentage: percentage, // 25, 50, 75, or 100
-            services: {
-                outfits: hasOutfits ? 'completed' : 'pending'
-            }
-        });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
 });
 
 // Root route to check if server is actually alive
